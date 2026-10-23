@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import { pool } from '../config/db.js';
+import { authenticate, allowRoles } from '../middleware/auth.js';
+import { dashboard } from '../controllers/ticketController.js';
+const router=Router();router.use(authenticate);router.get('/dashboard',dashboard);
+router.get('/users',allowRoles('ADMIN'),async(req,res,next)=>{try{const r=await pool.query('SELECT id,name,email,role,created_at FROM users ORDER BY name');res.json({users:r.rows})}catch(e){next(e)}});
+router.patch('/users/:id/role',allowRoles('ADMIN'),async(req,res,next)=>{try{const role=String(req.body.role||'').toUpperCase();if(!['USER','STAFF','ADMIN'].includes(role))return res.status(400).json({message:'Invalid role.'});if(Number(req.params.id)===req.user.id&&role!=='ADMIN')return res.status(400).json({message:'You cannot remove your own admin role.'});const r=await pool.query('UPDATE users SET role=$1 WHERE id=$2 RETURNING id,name,email,role,created_at',[role,req.params.id]);if(!r.rowCount)return res.status(404).json({message:'User not found.'});res.json({user:r.rows[0]})}catch(e){next(e)}});
+router.get('/notifications',async(req,res,next)=>{try{const r=await pool.query('SELECT * FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 30',[req.user.id]);res.json({notifications:r.rows})}catch(e){next(e)}});
+router.patch('/notifications/:id/read',async(req,res,next)=>{try{const r=await pool.query('UPDATE notifications SET is_read=TRUE WHERE id=$1 AND user_id=$2 RETURNING *',[req.params.id,req.user.id]);if(!r.rowCount)return res.status(404).json({message:'Notification not found.'});res.json({notification:r.rows[0]})}catch(e){next(e)}});
+router.get('/reports',allowRoles('ADMIN'),async(req,res,next)=>{try{const [byStatus,byPriority,performance]=await Promise.all([pool.query('SELECT status,COUNT(*)::int AS count FROM tickets GROUP BY status ORDER BY status'),pool.query('SELECT priority,COUNT(*)::int AS count FROM tickets GROUP BY priority ORDER BY priority'),pool.query('SELECT COUNT(*)::int AS total,ROUND(AVG(rating)::numeric,1) AS average_rating FROM ticket_feedback')]);res.json({byStatus:byStatus.rows,byPriority:byPriority.rows,feedback:performance.rows[0]})}catch(e){next(e)}});
+export default router;

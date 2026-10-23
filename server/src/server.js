@@ -1,0 +1,2 @@
+import dotenv from 'dotenv';import app from './app.js';import { pool } from './config/db.js';dotenv.config();const port=Number(process.env.PORT||5000);
+try{await pool.query('SELECT 1');app.listen(port,()=>console.log(`Ticket Management API running at http://localhost:${port}`));}catch(e){console.error('Cannot connect to PostgreSQL. Check DATABASE_URL and ensure PostgreSQL is running.');console.error(e.message);process.exit(1)}

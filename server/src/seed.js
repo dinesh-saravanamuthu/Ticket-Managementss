@@ -1,0 +1,3 @@
+import dotenv from 'dotenv';import bcrypt from 'bcryptjs';import {pool} from './config/db.js';dotenv.config();
+const demo=[['System Admin','admin@ticket.com','admin123','ADMIN'],['Support Staff','staff@ticket.com','staff123','STAFF'],['Demo User','user@ticket.com','user123','USER']];
+try{for(const [name,email,password,role] of demo){const hash=await bcrypt.hash(password,12);await pool.query('INSERT INTO users(name,email,password_hash,role) VALUES($1,$2,$3,$4) ON CONFLICT(email) DO NOTHING',[name,email,hash,role]);}console.log('Demo accounts ready: admin@ticket.com, staff@ticket.com, user@ticket.com');console.log('Development-only passwords: admin123 / staff123 / user123');}catch(e){console.error(e.message);process.exitCode=1}finally{await pool.end()}
